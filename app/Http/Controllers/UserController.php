@@ -22,7 +22,10 @@ class UserController extends Controller
         try {
             if (!$request->hasAny(['name', 'last_name', 'registration_date', 'hour', 'state'])) {
                 $users = User::with('memberships')->paginate(10);
-                return UserResource::collection($users);
+                return UserResource::collection($users)->additional([
+                    'message' => 'Usuarios listados',
+                    'success' => true
+                ]);
             }
 
             $filterData = User::query();
@@ -51,7 +54,10 @@ class UserController extends Controller
                 });
             }
     
-            return UserResource::collection($filterData->with('memberships')->paginate(10));
+            return UserResource::collection($filterData->with('memberships')->paginate(10))->additional([
+                'message' => 'Usuarios listados',
+                'success' => true
+            ]);
         } catch (\Throwable $th) {
             return response()->json([
                 'data' => [],
@@ -81,7 +87,6 @@ class UserController extends Controller
                 'hour.required' => 'La hora es requerida',
                 'min' => 'Mínimo 3 carácteres',
                 'max' => 'Máximo 40 carácteres',
-                'registration_date.required' => 'La fecha de registro es requerida.',
                 'registration_date.date_format' => 'La fecha debe tener el formato YYYY-MM-DD.',
                 'hour.required' => 'La hora es requerida.',
                 'hour.date_format' => 'La hora debe tener el formato HH:MM en horario de 24 horas.',
@@ -135,22 +140,141 @@ class UserController extends Controller
      */
     public function show(string $id)
     {
-        //
+        try {
+            if (!isset($id)) {
+                return response()->json([
+                    'data' => [],
+                    'message' => 'No se encontró el recurso especificado',
+                    'success' => false
+                ]);
+            }
+
+            $user = User::where('id', $id)->with('memberships')->get();
+            if (!$user) {
+                return response()->json([
+                    'data' => [],
+                    'message' => 'No se encontró el recurso especificado',
+                    'success' => false
+                ]);
+            }
+
+            return UserResource::collection($user)->additional([
+                'message' => 'Usuario listado',
+                'success' => true
+            ]);
+        } catch (\Throwable $th) {
+            //throw $th;
+        }
     }
 
     /**
-     * Update the specified resource in storage.
+     * Actualiza un usuario.
      */
     public function update(Request $request, string $id)
     {
-        //
+        try {
+            if (!$request->hasAny(['name', 'last_name', 'registration_date', 'hour']) || !isset($id)) {
+                return response()->json([
+                    'data' => [],
+                    'message' => 'Los parámetros enviados no están dentro de los permitidos',
+                    'success' => false
+                ]);
+            }
+
+            $dataUpdate = [];
+            $rules = [];
+            $messages = [
+                'min' => 'Mínimo 3 carácteres',
+                'max' => 'Máximo 40 carácteres',
+            ];
+
+            if ($request->filled('name')) {
+                $dataUpdate['name'] = $request->string('name')->trim();
+                $rules['name'] = 'min:3|max:40';
+            }
+    
+            if ($request->filled('last_name')) {
+                $dataUpdate['last_name'] = $request->string('last_name')->trim();
+                $rules['last_name'] = 'min:3|max:40';
+            }
+    
+            if ($request->filled('registration_date')) {
+                $dataUpdate['registration_date'] = $request->string('registration_date')->trim();
+                $rules['registration_date'] = Rule::date()->format('Y-m-d');
+                $messages['registration_date.date_format'] = 'La fecha debe tener el formato YYYY-MM-DD.';
+            }
+    
+            if ($request->filled('hour')) {
+                $dataUpdate['hour'] = $request->string('hour')->trim();
+                $rules['hour'] = Rule::date()->format('H:i');
+                $messages['hour.date_format'] = 'La hora debe tener el formato HH:MM en horario de 24 horas.';
+            }
+
+            $validator = Validator::make($request->all(), $rules, $messages);
+
+            if ($validator->fails()) {
+                $errorsFormat = collect($validator->errors())->map(function($error) {
+                    return $error[0];
+                });
+                return response()->json([
+                    'data' => [],
+                    'message' => 'No fue posible actualizar el usuario',
+                    'success' => false,
+                    'errors' => $errorsFormat
+                ]);
+            }
+            
+            $userUpdate = User::where('id', $id)->update($dataUpdate);
+            return response()->json([
+                'data' => $userUpdate,
+                'message' => 'Usuario actualizado con éxito.',
+                'success' => true
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'data' => [],
+                'message' => 'Ocurrió un error al editar el usuario',
+                'success' => false
+            ]);
+        }
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Cambia el estado de un usuario a INACTIVE.
      */
     public function destroy(string $id)
     {
-        //
+        try {
+            if (!isset($id)) {
+                return response()->json([
+                    'data' => [],
+                    'message' => 'Ocurrió un error al eliminar el usuario',
+                    'success' => false
+                ]);
+            }
+
+            $userActive = User::where('id', $id)->where('state', 'ACTIVE')->first();
+            if ($userActive) {
+                $userActive->update(['state' => 'INACTIVE']);
+
+                return response()->json([
+                    'data' => [],
+                    'message' => 'Usuario eliminado con éxito.',
+                    'success' => false
+                ]);    
+            }
+
+            return response()->json([
+                'data' => [],
+                'message' => 'No se encontró el usuario especificado',
+                'success' => false
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'data' => [],
+                'message' => 'Ocurrió un error al eliminar el usuario',
+                'success' => false
+            ]);
+        }
     }
 }

@@ -4,13 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -35,23 +35,19 @@ class UserController extends Controller
             }
     
             if ($request->filled('last_name')) {
-                $filterData->orWhere('last_name', 'like', '%'.$request->string('last_name')->trim().'%');
+                $filterData->where('last_name', 'like', '%'.$request->string('last_name')->trim().'%');
             }
 
             if ($request->filled('state')) {
-                $filterData->orWhere('state', $request->string('state')->trim());
+                $filterData->where('state', $request->string('state')->trim());
             }
     
             if ($request->filled('registration_date')) {
-                $filterData->orWhere(function (Builder $query) use ($request) {
-                    $query->where('registration_date', $request->string('registration_date')->trim());
-                });
+                $filterData->where('registration_date', $request->string('registration_date')->trim());
             }
     
             if ($request->filled('hour')) {
-                $filterData->orWhere(function (Builder $query) use ($request) {
-                    $query->where('hour', 'like', '%'.$request->string('hour')->trim().'%');
-                });
+                $filterData->where('hour', 'like', '%'.$request->string('hour')->trim().'%');
             }
     
             return UserResource::collection($filterData->with('memberships')->paginate(10))->additional([

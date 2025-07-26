@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\MembershipController;
 
 // Route::get('/user', function (Request $request) {
 //     return $request->user();
@@ -13,4 +14,9 @@ Route::prefix('users')->group(function () {
     Route::post('/create', [UserController::class, 'store']);
     Route::put('/{id}', [UserController::class, 'update']);
     Route::delete('/{id}', [UserController::class, 'destroy']);
+});
+
+Route::prefix('memberships')->group(function () {
+    Route::get('/', [MembershipController::class, 'index']);
+    Route::post('/create', [MembershipController::class, 'store']);
 });

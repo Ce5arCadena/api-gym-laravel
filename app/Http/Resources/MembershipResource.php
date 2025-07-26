@@ -16,11 +16,13 @@ class MembershipResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'user_id' => $this->user_id,
             'start_date' => $this->start_date,
             'end_date' => $this->end_date,
             'pay' => $this->pay,
             'balance' => $this->balance,
             'state' => $this->state,
+            'user' => new UserResource($this->whenLoaded('user')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at
         ];

@@ -126,11 +126,39 @@ class MembershipController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Muestra una membresia en espcifico.
      */
     public function show(string $id)
     {
-        //
+        try {
+            if (!isset($id)) {
+                return response()->json([
+                    'data' => [],
+                    'message' => 'Es necesario el identificador de la membresia',
+                    'success' => false
+                ]);
+            }
+
+            $membership = Membership::where('id', $id)->with('user')->get();
+            if (!$membership) {
+                return response()->json([
+                    'data' => [],
+                    'message' => 'No fue posible encontrar la membresia. Intente nuevamente.',
+                    'success' => false
+                ]);
+            }
+
+            return MembershipResource::collection($membership)->additional([
+                'message' => 'Membresia encontrada',
+                'success' => true
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'data' => [],
+                'message' => 'Ocurrió un error al consultar la membresia',
+                'success' => false
+            ]);
+        }
     }
 
     /**
@@ -230,10 +258,41 @@ class MembershipController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Elimina una membresia.
      */
     public function destroy(string $id)
     {
-        //
+        try {
+            if (!isset($id)) {
+                return response()->json([
+                    'data' => [],
+                    'message' => 'Es necesario el identificador de la membresia',
+                    'success' => false
+                ]);
+            }
+
+            $membershipDelete = Membership::where('id', $id)->first();
+            if ($membershipDelete) {
+                return response()->json([
+                    'data' => [],
+                    'message' => 'No fue posible eliminar la membresia.',
+                    'success' => false
+                ]);
+            }
+
+            $membershipDelete->delete();
+
+            return response()->json([
+                'data' => [],
+                'message' => 'Membresia eliminada.',
+                'success' => true
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'data' => [],
+                'message' => 'Ocurrió un error al eliminar la membresia',
+                'success' => false
+            ]);
+        }
     }
 }

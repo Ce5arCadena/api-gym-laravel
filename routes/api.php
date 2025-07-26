@@ -20,4 +20,5 @@ Route::prefix('memberships')->group(function () {
     Route::get('/', [MembershipController::class, 'index']);
     Route::post('/create', [MembershipController::class, 'store']);
     Route::put('/{id}', [MembershipController::class, 'update']);
+    Route::get('/{id}', [MembershipController::class, 'show']);
 });

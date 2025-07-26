@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Models\Membership;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\MembershipResource;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class MembershipController extends Controller
 {
@@ -57,7 +58,7 @@ class MembershipController extends Controller
     /**
      * Crea una nueva membresia.
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse | AnonymousResourceCollection
     {
         try {
             $rules = [
@@ -119,7 +120,7 @@ class MembershipController extends Controller
             return response()->json([
                 'data' => [],
                 'message' => 'Ocurrió un error al crear la membresia',
-                'success' => $th->getFile()
+                'success' => false
             ]);
         }
     }
@@ -133,11 +134,99 @@ class MembershipController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Actualiza una membresia.
      */
     public function update(Request $request, string $id)
     {
-        //
+        try {
+            if (!$request->hasAny(['user', 'start_date', 'end_date', 'pay', 'balance']) || !isset($id)) {
+                return response()->json([
+                    'data' => [],
+                    'message' => 'Los parámetros enviados no están dentro de los permitidos',
+                    'success' => false
+                ]);    
+            }
+
+            $membership = Membership::where('id', $id)->first();
+            if (!$membership) {
+                return response()->json([
+                    'data' => [],
+                    'message' => 'La membresia especificada no existe',
+                    'success' => false
+                ]);
+            }
+
+            $rules = [];
+            $messages = [];
+            $fieldsUpdate = [];
+            if ($request->filled('user')) {
+                $rules['user'] = 'exists:App\Models\User,id';
+                $fieldsUpdate['user_id'] = $request->string('user')->trim();
+                $messages['user.exists'] = 'El usuario especificado no existe';
+            }
+
+            if ($request->filled('start_date')) {
+                $rules['start_date'] = Rule::date()->format('Y-m-d');
+                $fieldsUpdate['start_date'] = $request->string('start_date')->trim();
+                $messages['start_date.date_format'] = 'La fecha de inicio de la membresia no cumple con el formato (AAAA-MM-DD)';
+            }
+
+            if ($request->filled('end_date')) {
+                $rules['end_date'] = [Rule::date()->format('Y-m-d'), 'after:start_date'];
+                $fieldsUpdate['end_date'] = $request->string('end_date')->trim();
+                $messages['end_date.after'] = 'La fecha de fin de la membresia debe ser mayor a la de inicio';
+                $messages['end_date.date_format'] = 'La fecha de fin de la membresia no cumple con el formato (AAAA-MM-DD)';
+            }
+
+            if ($request->filled('pay') && in_array(strtolower($request->string('pay')->trim()), ['debe', 'pagado'])) {
+                $rules['pay'] = Rule::in(['Debe', 'Pagado']);
+                $fieldsUpdate['pay'] = $request->string('pay')->trim();
+                $messages['pay.in'] = 'El estado del pago solo puede ser (Pagado, Debe)';
+                if ($request->filled('pay') && strtolower($request->string('pay')->trim()) === "debe" && $request->filled('balance')) {
+                    $rules['balance'] = 'integer';
+                    $messages['balance.integer'] = 'El saldo solo deben ser números';
+                    $fieldsUpdate['balance'] = $request->string('balance')->trim();
+                }
+            }
+
+            $validator = Validator::make($request->all(), $rules, $messages);
+
+            $validator->after(function ($validator) use ($request) {
+                if ($request->filled('pay') && strtolower($request->string('pay')->trim()) === "debe" && $request->isNotFilled('balance')) {
+                    $validator->errors()->add('balance', 'Si el estado del pago es Debe, el saldo es requerido');
+                }
+
+                if ($request->filled('pay') && strtolower($request->string('pay')->trim()) === "pagado" && $request->filled('balance')) {
+                    $validator->errors()->add('balance', 'Si el pago fue completado, no debe haber saldo');
+                }
+            });
+
+            if ($validator->fails()) {
+                $errorsFormat = collect($validator->errors())->map(function($error) {
+                    return $error[0];
+                });
+
+                return response()->json([
+                    'data' => [],
+                    'message' => 'No fue posible actualizar el usuario',
+                    'success' => false,
+                    'errors' => $errorsFormat
+                ]);
+            }
+
+            $membershipUpdate = $membership->update($fieldsUpdate);
+            return response()->json([
+                'data' => $membershipUpdate,
+                'message' => 'Membresia actualizada con éxito.',
+                'success' => true
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'data' => [],
+                'message' => 'Ocurrió un error al actualizar la membresia',
+                'success' => false
+            ]);
+        }
     }
 
     /**

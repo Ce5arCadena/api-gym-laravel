@@ -177,6 +177,15 @@ class UserController extends Controller
                 ]);
             }
 
+            $user = User::where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'data' => [],
+                    'message' => 'El usuario especificado no existe',
+                    'success' => false
+                ]);
+            }
+
             $dataUpdate = [];
             $rules = [];
             $messages = [
@@ -220,7 +229,7 @@ class UserController extends Controller
                 ]);
             }
             
-            $userUpdate = User::where('id', $id)->update($dataUpdate);
+            $userUpdate = $user->update($dataUpdate);
             return response()->json([
                 'data' => $userUpdate,
                 'message' => 'Usuario actualizado con éxito.',
